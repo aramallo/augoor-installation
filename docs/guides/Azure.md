@@ -1,5 +1,8 @@
-## Azure Installation
-![Components of Azure Installation](./doc/Azure.drawio.png)
+---
+outline: [1,2,3]
+---
+# Azure Installation
+![Components of Azure Installation](/Azure.drawio.png)
 ### Prerequisites
 
 - [AKS Cluster](#create-aks-cluster)

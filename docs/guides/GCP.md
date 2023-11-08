@@ -1,5 +1,8 @@
-## GCP Installation
-![Components of GCP Installation](./doc/GCP.drawio.png)
+---
+outline: [1,2,3]
+---
+# GCP Installation
+![Components of GCP Installation](/GCP.drawio.png)
 ### Prerequisites
 
 - [GKS Cluster](#create-gks-cluster)

@@ -1,5 +1,8 @@
-## OpenShift Installation
-![Components of OpenShift Installation](./doc/OpenShift.drawio.png)
+---
+outline: [1,2,3]
+---
+# OpenShift Installation
+![Components of OpenShift Installation](/OpenShift.drawio.png)
 ### Prerequisites
 
 - [OpenShift Create and configure Augoor Project](#create-augoor-project)

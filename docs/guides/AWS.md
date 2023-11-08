@@ -1,19 +1,59 @@
-## AWS Installation
-![Components of AWS Installation](./doc/AWS.drawio.png)
-### Prerequisites
+---
+outline: [2,3]
+---
+# AWS Installation
+This document will guide you trought all the steps required to deploy Augoor in AWS Elastic Kubernetes Service (EKS).
 
-- [EKS Cluster](#create-eks-cluster)
-- [AWS Load Balancer Controller](#install-Load-Balancer-controller)
-- [Enable the Cluster to Download the images](#enable-the-cluster-to-download-the-images)
-- [NFS Endpoint in the network of the Cluster(storage that support NFS)](#configure-nfs-access)
-- [PostgresSQL Server ](#create-postgresql-server)
+The resulting deployment will look like the following diagram, which shows:
+* An Application Load Balancer (ALB) that exposes Augoor services
+* An operational EKS cluster containing Augoor's services and an instance of RabbitMQ
+* Network access configured to accept incoming traffic from the ALB
+* An instance of a Network File System (NFS)
+* An instance of a PostgreSQL database e.g. Amazon RDS
 
-### Create EKS Cluster
 
-full documentation on:
-  * [Creating an Amazon EKS cluster](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html).
+<br>
 
-1. Create an Amazon EKS cluster IAM role:
+![Components of AWS Installation](/AWS.drawio.png)
+
+## 1. Prepare the infrastructure
+
+### 1.1 EKS General Node Group
+A K8s node group used by most Augoor's application components.
+
+|Type of instances | Quantity | Disk   | GPU Support |
+|-------------------|----------|--------|-------------|
+| t3.xlarge         | 2~3      | 120 GB | Not needed  |
+
+### 1.2 EKS GPU Node Group (Elastic Scaling)
+A K8s node group used by most Augoor's machine learning model serving components which require access to a GPU.
+
+|Type of instances|Scale Min|Scale Max|Disk|GPU Support|
+|---|---|---|---|---|
+| g5.4xlarge|0| >=1| 180 GB | Needed: [Amazon EKS optimized accelerated AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html#gpu-ami)|
+
+### 1.3 Networking
+The following ports have to be open on all nodes.
+
+|Port Number|Direction|Description|
+|---|---|---|
+|`all`|`incoming`| Required for internode communication within the K8s cluster|
+|`5432`|`outgoing`|Required for application components to communicate with the PostgreSQL database|
+|`8080`|`incoming`| HTTP port for traffic incoming from from Application Load Balancers (ALBs)|
+
+
+### 1.4 Additional K8s requirements
+- AutoScaling should be enabled by deploying the [Cluster Autoscaler](https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/cloudprovider/aws/README.md)
+- Install the [EFS CSI Driver](https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/docs/README.md#installation) which is required for K8s to manage the lifecycle of Amazon EFS file systems.
+
+## 2. Create the EKS Cluster
+
+::: info AWS Documentation
+For full documentation please refer to [Creating an Amazon EKS cluster](https://docs.aws.amazon.com/eks/latest/userguide/create-cluster.html)
+:::
+
+### 2.1. Create an Amazon EKS cluster IAM role
+
 ```bash
 cat >eks-cluster-role-trust-policy.json <<EOF
 {
@@ -34,47 +74,83 @@ aws iam create-role --role-name $EKSClusterRole --assume-role-policy-document fi
 aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy --role-name $EKSClusterRole
 ```
 
-2. Create a VPC:
+### 2.2. Create a VPC
 ```bash
-VPC_ID=$(aws ec2 create-vpc --cidr-block $vnetCIDR --query Vpc.VpcId --output text)
+VPC_ID=$(aws ec2 create-vpc \
+  --cidr-block $vnetCIDR \
+  --query Vpc.VpcId \
+  --output text)
 aws ec2 create-tags --resources $VPC_ID --tags $tags
 ```
 
-3. Create subnets for each component. For APP Subnet at least 2 availability zones is needed
-```bash
-SNET_APP_AZ1_ID=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block $snetappAZ1CIDR --availability-zone $availabilityZone1 --query Subnet.SubnetId --output text)
-aws ec2 create-tags --resources $SNET_APP_AZ1_ID --tags $tags
-SNET_APP_AZ2_ID=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block $snetappAZ2CIDR --availability-zone $availabilityZone1 --query Subnet.SubnetId --output text)
-aws ec2 create-tags --resources $SNET_APP_AZ2_ID --tags $tags
+### 2.3. Create subnets for each component
 
-SNET_STORAGE_ID=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block $snetstorageCIDR --query Subnet.SubnetId --output text)
+::: warning IMPORTANT
+For APP Subnet at least 2 availability zones are required.
+:::
+
+The following snippet will create 4 subnets.
+
+```bash
+SNET_APP_AZ1_ID=$(aws ec2 create-subnet \
+  --vpc-id $VPC_ID \
+  --cidr-block $snetappAZ1CIDR \
+  --availability-zone $availabilityZone1 \
+  --query Subnet.SubnetId \
+  --output text)
+aws ec2 create-tags --resources $SNET_APP_AZ1_ID --tags $tags
+SNET_APP_AZ2_ID=$(aws ec2 create-subnet \
+  --vpc-id $VPC_ID \
+  --cidr-block $snetappAZ2CIDR \
+  --availability-zone $availabilityZone1 \
+  --query Subnet.SubnetId \
+  --output text)
+aws ec2 create-tags --resources $SNET_APP_AZ2_ID --tags $tags
+SNET_STORAGE_ID=$(aws ec2 create-subnet \
+  --vpc-id $VPC_ID \
+  --cidr-block $snetstorageCIDR \
+  --query Subnet.SubnetId \
+  --output text)
 aws ec2 create-tags --resources $SNET_STORAGE_ID --tags $tags
-SNET_POSTGRES_ID=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block $snetpostgresCIDR --query Subnet.SubnetId --output text)
+SNET_POSTGRES_ID=$(aws ec2 create-subnet \
+  --vpc-id $VPC_ID \
+  --cidr-block $snetpostgresCIDR \
+  --query Subnet.SubnetId \
+  --output text)
 aws ec2 create-tags --resources $SNET_POSTGRES_ID --tags $tags
 ```
  
-4. Create a security group for the VPC
+### 2.4. Create a security group for the VPC
 ```bash
-SG_ID=$(aws ec2 create-security-group --group-name $securityGroupName --description $someDescription --vpc-id $VPC_ID --query GroupId --output text)
+SG_ID=$(aws ec2 create-security-group \
+  --group-name $securityGroupName \
+  --description $someDescription \
+  --vpc-id $VPC_ID \
+  --query GroupId \
+  --output text)
 aws ec2 create-tags --resources $SG_ID --tags $tags
 ```
 
-5. To create EKS Cluster execute
+### 2.5. Create the EKS Cluster
 ```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-aws eks create-cluster --region $location \
-   --name $clusterName \
-   --kubernetes-version 1.26 \
-   --role-arn arn:aws:iam::$ACCOUNT_ID:role/$EKSClusterRole \
-   --resources-vpc-config subnetIds=$SNET_APP_AZ1_ID,$SNET_APP_AZ2_ID
+ACCOUNT_ID=$(aws sts get-caller-identity \
+  --query Account \
+  --output text)
+aws eks create-cluster \
+  --region $location \
+  --name $clusterName \
+  --kubernetes-version 1.26 \
+  --role-arn arn:aws:iam::$ACCOUNT_ID:role/$EKSClusterRole \
+  --resources-vpc-config subnetIds=$SNET_APP_AZ1_ID,$SNET_APP_AZ2_ID
 ```
 
-### Install Load Balancer controller
+## 2. Install the AWS Load Balancer controller
 
-full documentation on:
-  * [Installing the AWS Load Balancer Controller add-on](https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html).
+::: info AWS Documentation
+For full documentation please refer to [Installing the AWS Load Balancer Controller add-on](https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html).
+:::
 
-1. Create an IAM Policy
+### 2.1 Create an IAM Policy
 ```bash
 curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.7/docs/install/iam_policy.json
 aws iam create-policy \
@@ -82,10 +158,15 @@ aws iam create-policy \
    --policy-document file://iam_policy.json
 ```
 
-2. Create an IAM role
+### 2.2. Create an IAM role
 ```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-CLUSTER_OIDC=$(aws eks describe-cluster --name $clusterName --query "cluster.identity.oidc.issuer" --output text | awk -F"https://" '{ print $2 }')
+ACCOUNT_ID=$(aws sts get-caller-identity \
+  --query Account \
+  --output text)
+CLUSTER_OIDC=$(aws eks describe-cluster \
+  --name $clusterName \
+  --query "cluster.identity.oidc.issuer" \
+  --output text | awk -F"https://" '{ print $2 }')
 cat >load-balancer-role-trust-policy.json <<EOF
 {
     "Version": "2012-10-17",
@@ -114,7 +195,7 @@ aws iam attach-role-policy \
   --role-name AmazonEKSLoadBalancerControllerRole
 ```
 
-3. Create Kubernetes service account
+### 2.3. Create Kubernetes service account
 ```bash
 cat >aws-load-balancer-controller-service-account.yaml <<EOF
 apiVersion: v1
@@ -132,7 +213,7 @@ EOF
 kubectl apply -f aws-load-balancer-controller-service-account.yaml
 ```
 
-4. Install the AWS Load Balancer Controller
+### 2.4. Install the AWS Load Balancer Controller
 ```bash
 helm repo add eks https://aws.github.io/eks-charts
 helm repo update
@@ -143,16 +224,14 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   --set serviceAccount.name=aws-load-balancer-controller 
 ```
 
-### Enable the Cluster to Download the images
+## 3. Enable the Cluster to download the Augoor components' docker images
 
-We have 2 options configure the installation to pull the images:
+We have 2 options to pull the Augoor components' docker images from the Augoor Container Registry:
 
-- [Pull direct from Augoor Container Registry](#create-a-secret-to-authenticate-the-cluster-to-augoor-container-registry) 
-- [Upload to a private repository and pull from there](#upload-images-to-your-registry) 
+::: details Pull directly from Augoor Container Registry
 
-#### ***Create a Secret to authenticate the cluster to Augoor Container Registry*** 
+Using this option you will need to create a Secret to authenticate your K8s cluster to Augoor Container Registry.
 
-1. Create the pull images secret 
 ```bash
 kubectl create secret docker-registry acr-secret \
     --namespace $augoorNamespace \
@@ -160,15 +239,20 @@ kubectl create secret docker-registry acr-secret \
     --docker-username=$servicePrincipalId \
     --docker-password=$servicePrincipalPwd
 ```
+:::
 
-#### ***Upload images to your registry***
+::: details Upload the Augoor images to your private registry
 In this option you need to upload the images in your own Image Registry and will impact the parameters of the installation because the image location will need to be parametrized.
+:::
 
-### Configure NFS Access
 
-full documentation on:
+## 4. Configure NFS Access
+
+::: info AWS Documentation
+For full documentation please refer to
   * [Amazon EFS CSI driver](https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html).
   * [create-mount-target](https://docs.aws.amazon.com/cli/latest/reference/efs/create-mount-target.html).
+:::
 
 1. Create an IAM policy
 ```bash
@@ -269,7 +353,7 @@ mkdir -p ${global.volumeRootPath}/{efs-spider,context-api-repositories,metadata,
 chown -R 1000:1000 ${global.volumeRootPath}
 ```
 
-### Create PostgreSQL Server
+## 5. Create PostgreSQL Server
 
 Augoor use a postgres database to store the list of projects, status, and user relations to create a database server for
 it execute the following command, it creates a postgres database using AWS's [RDS](https://aws.amazon.com/rds/postgresql/) solution.

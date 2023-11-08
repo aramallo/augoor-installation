@@ -1,4 +1,7 @@
-## Install Rabbit MQ
+---
+outline: [1,2,3]
+---
+# Install Rabbit MQ
 
 Augoor use Rabbit MQ as Bus to Communicate some components
 
