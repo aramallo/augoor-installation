@@ -15,7 +15,7 @@
 |GCP| n1-standard-8 + 1 GPU NVIDIA V100  | 0   | >=1   | 180 GB | Needed: [Install NVIDIA GPU drivers automatically or manually](https://cloud.google.com/kubernetes-engine/docs/how-to/gpus#create-gpu-pool-auto-drivers) |
 
 
-#### Additional requirement
+#### Additional requirements
 - The nodes need support for GPU, Azure, and GCP are included by default AWS requires GPU Optimized AMI.
 - The nodes need open communication in port `8080` from ALBs.
 - The nodes need open TCP communication between nodes.
