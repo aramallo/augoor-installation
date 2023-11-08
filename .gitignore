@@ -35,3 +35,4 @@ work/
 #logs
 *.log
 **/node_modules/*
+/docs/.vitepress/dist
