@@ -12,6 +12,10 @@ export default defineConfig({
       { text: 'Augoor.com', link: 'https://augoor.com' }
     ],
 
+    head : [],
+
+    lang: 'en-US',
+
     sidebar: [
       {
         text: 'Guides',
