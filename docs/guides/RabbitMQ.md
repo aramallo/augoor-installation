@@ -21,11 +21,11 @@ helm install rabbitmq-cluster bitnami/rabbitmq-cluster-operator -n augoor-rabbit
 use self signed certificates to patch rabbit-mq installation to enable SSL.
 
 To create Self Signed Certificate personalize the templates, if needed
-- [cert.conf](./utils/mq-certificate/cert.conf)
-- [csr.conf](./utils/mq-certificate/csr.conf)
+- [cert.conf](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-certificate/cert.conf)
+- [csr.conf](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-certificate/csr.conf)
 
-Execute the scripts in the folder [/utils/mq-certificate](./utils/mq-certificate/) in order to :
-1. Create the certificates in [local folder](./local/)
+Execute the scripts in the folder [/utils/mq-certificate](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-certificate/) in order to :
+1. Create a the certificates in your local folder e.g. `./local/`
    ```bash
    cd ./utils/mq-certificate
    bash 1-create-tls-mq-certificate.sh
@@ -41,7 +41,7 @@ Execute the scripts in the folder [/utils/mq-certificate](./utils/mq-certificate
 
 Create Config Map to mount the cacerts
 
-1. Execute script [/utils/mq-certificate-auth/create-cert-configmap.sh](./utils/mq-certificate-auth/create-cert-configmap.sh) with the name of augoor kubernetes namespace as a parameter ($augoorNamespace)
+1. Execute script [/utils/mq-certificate-auth/create-cert-configmap.sh](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-certificate-auth/create-cert-configmap.sh) with the name of augoor kubernetes namespace as a parameter ($augoorNamespace)
 > **NOTE**: Java keytool binary needs to be installed
 ```bash
 cd ./utils/mq-certificate-auth
@@ -54,7 +54,7 @@ bash create-cert-configmap.sh -n $augoorNamespace
 
 Create Config Map needed by Augoor to start some pods
 
-1. Execute script [/utils/mq-certificate-auth/create-cert-configmap.sh](./utils/mq-certificate-auth/create-cert-configmap.sh) with the name of augoor kubernetes namespace as a parameter ($augoorNamespace) and the option -o as follows
+1. Execute script [/utils/mq-certificate-auth/create-cert-configmap.sh](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-certificate-auth/create-cert-configmap.sh) with the name of augoor kubernetes namespace as a parameter ($augoorNamespace) and the option -o as follows
 
 ```bash
 cd ./utils/mq-certificate-auth
@@ -79,7 +79,7 @@ Objects to be created:
 5. rabbit-user-1-permission Permission
 
 #### For Kubernetes installation
-Execute the script [/utils/mq-create-objects/create-objects.sh](./utils/mq-create-objects/create-objects.sh)
+Execute the script [/utils/mq-create-objects/create-objects.sh](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-create-objects/create-objects.sh)
 
    * SSL ENABLED
    ```bash
@@ -94,7 +94,7 @@ Execute the script [/utils/mq-create-objects/create-objects.sh](./utils/mq-creat
    ```
 
 #### For OpenShift installation
-Execute the script [/utils/mq-create-objects/create-objects-openshift.sh](./utils/mq-create-objects/create-objects-openshift.sh)
+Execute the script [/utils/mq-create-objects/create-objects-openshift.sh](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-create-objects/create-objects-openshift.sh)
 
    * SSL ENABLED
    ```bash

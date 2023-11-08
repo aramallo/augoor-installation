@@ -397,13 +397,13 @@ helm install rabbitmq-cluster bitnami/rabbitmq-cluster-operator -n augoor-rabbit
 use self signed certificates to patch rabbit-mq installation to enable SSL.
 
 To create Self Signed Certificate personalize the templates
-- [cert.conf](./utils/mq-certificate/cert.conf)
-- [csr.conf](./utils/mq-certificate/csr.conf)
+- [cert.conf](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-certificate/cert.conf)
+- [csr.conf](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-certificate/csr.conf)
 
-Execute the scripts in the folder [/utils/mq-certificate](./utils/mq-certificate/) in order to :
-1. Create a the certificates localy in [local folder](./local/)
+Execute the scripts in the folder [/utils/mq-certificate](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-certificate/) in order to :
+1. Create a the certificates in your local folder e.g. `./local/`
 1. Create a Secret in kubernetes that contain the certificates
 1. Patch the Rabbit MQ operator to use SSL using the certificates
 
 Create Config Map to mount the cacerts
-1. execute script [/utils/mq-certificate-auth/create-cert-configmap.sh](./utils/mq-certificate-auth/create-cert-configmap.sh) with the name of augoor kubernetes namespace as a parameter ($augoorNamespace)
+1. execute script [/utils/mq-certificate-auth/create-cert-configmap.sh](https://github.com/augoor-installation/augoor-installation/blob/main/utils/mq-certificate-auth/create-cert-configmap.sh) with the name of augoor kubernetes namespace as a parameter ($augoorNamespace)
